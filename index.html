@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warp Chat | Mario Edition</title>
-    <!-- Tailwind CSS for modern layout -->
+    <title>Warp Chat Pro | Mario Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Poppins:wght@400;600&display=swap');
@@ -22,314 +21,294 @@
             font-family: 'Poppins', sans-serif;
             overflow: hidden;
             height: 100vh;
+            margin: 0;
         }
 
-        .mario-font {
-            font-family: 'Press Start 2P', cursive;
-        }
+        .mario-font { font-family: 'Press Start 2P', cursive; }
 
-        /* 8-bit Borders */
         .pixel-border {
-            box-shadow: 
-                0 -4px 0 0 black,
-                0 4px 0 0 black,
-                -4px 0 0 0 black,
-                4px 0 0 0 black;
+            box-shadow: 0 -4px 0 0 black, 0 4px 0 0 black, -4px 0 0 0 black, 4px 0 0 0 black;
         }
 
         .pixel-btn {
             background-color: var(--mario-brick);
             transition: all 0.1s;
-            position: relative;
         }
 
-        .pixel-btn:active {
-            transform: translateY(4px);
-            box-shadow: 0 0 0 0 black;
-        }
+        .pixel-btn:active { transform: translateY(4px); }
 
-        .pixel-btn-green {
-            background-color: var(--mario-pipe);
-        }
-
-        /* Floating Clouds Animation */
         .cloud {
             position: absolute;
             background: white;
-            width: 80px;
-            height: 40px;
+            width: 80px; height: 40px;
             border-radius: 20px;
             opacity: 0.8;
             animation: moveClouds linear infinite;
         }
-        .cloud::after, .cloud::before {
-            content: '';
-            position: absolute;
-            background: white;
-            border-radius: 50%;
-        }
+        .cloud::after, .cloud::before { content: ''; position: absolute; background: white; border-radius: 50%; }
         .cloud::after { width: 50px; height: 50px; top: -20px; left: 10px; }
         .cloud::before { width: 40px; height: 40px; top: -10px; right: 10px; }
 
-        @keyframes moveClouds {
-            from { left: -100px; }
-            to { left: 110vw; }
-        }
-
-        /* Mario Pipe UI */
-        .pipe-entrance {
-            background: linear-gradient(90deg, var(--mario-pipe-dark) 0%, var(--mario-pipe) 50%, var(--mario-pipe-dark) 100%);
-            border: 4px solid black;
-            position: relative;
-        }
-
-        .pipe-cap {
-            height: 30px;
-            width: 110%;
-            left: -5%;
-            top: -30px;
-            position: absolute;
-            background: linear-gradient(90deg, var(--mario-pipe-dark) 0%, var(--mario-pipe) 50%, var(--mario-pipe-dark) 100%);
-            border: 4px solid black;
-        }
+        @keyframes moveClouds { from { left: -100px; } to { left: 110vw; } }
 
         .glass-panel {
             background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
-        .avatar-mushroom {
-            font-size: 2rem;
-            filter: drop-shadow(2px 2px 0px black);
+        .online-dot {
+            width: 10px; height: 10px;
+            background: var(--mario-pipe);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--mario-pipe);
         }
+
+        /* Loading Animation */
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 24px; height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="flex items-center justify-center p-4">
 
-    <!-- Background Clouds -->
-    <div class="cloud" style="top: 10%; animation-duration: 30s;"></div>
-    <div class="cloud" style="top: 25%; animation-duration: 45s; animation-delay: -5s;"></div>
-    <div class="cloud" style="top: 50%; animation-duration: 35s; animation-delay: -15s;"></div>
+    <!-- Background Decoration -->
+    <div class="cloud" style="top: 15%; animation-duration: 35s;"></div>
+    <div class="cloud" style="top: 40%; animation-duration: 50s; animation-delay: -10s;"></div>
 
     <!-- Login Screen -->
     <div id="login-screen" class="z-10 w-full max-w-md">
         <div class="bg-white p-8 pixel-border rounded-lg text-center">
             <h1 class="mario-font text-2xl mb-8 text-black leading-tight">WARP<br><span class="text-red-600">CHAT</span></h1>
             
-            <div class="mb-6">
-                <label class="block text-left text-sm font-bold text-gray-700 mb-2">Nickname</label>
-                <input type="text" id="nick-input" placeholder="örn: Mario" 
-                    class="w-full p-4 bg-gray-100 border-4 border-black focus:outline-none focus:border-red-600 text-lg">
+            <div class="space-y-4 mb-8">
+                <div>
+                    <input type="text" id="nick-input" placeholder="Nickname..." 
+                        class="w-full p-4 bg-gray-100 border-4 border-black focus:outline-none focus:border-red-600 text-lg">
+                </div>
+                <div>
+                    <input type="text" id="room-input" placeholder="Oda Adı..." 
+                        class="w-full p-4 bg-gray-100 border-4 border-black focus:outline-none focus:border-green-600 text-lg">
+                </div>
             </div>
 
-            <div class="mb-8">
-                <label class="block text-left text-sm font-bold text-gray-700 mb-2">Oda Anahtarı (6 Arkadaşınızla aynı girin)</label>
-                <input type="text" id="room-input" placeholder="örn: bizim-tayfa" 
-                    class="w-full p-4 bg-gray-100 border-4 border-black focus:outline-none focus:border-green-600 text-lg">
-            </div>
-
-            <button id="join-btn" class="pixel-btn w-full py-4 text-white mario-font text-sm pixel-border">
-                BORUYA ATLA!
+            <button id="join-btn" class="pixel-btn w-full py-4 text-white mario-font text-sm pixel-border flex items-center justify-center gap-2">
+                <span id="btn-text">BORUYA ATLA!</span>
+                <div id="btn-loader" class="spinner hidden"></div>
             </button>
         </div>
     </div>
 
-    <!-- Chat Screen (Hidden Initially) -->
-    <div id="chat-screen" class="hidden z-10 w-full max-w-4xl h-[85vh] flex flex-col">
-        <!-- Top Bar -->
-        <div class="glass-panel rounded-t-2xl p-6 flex justify-between items-center border-b border-white/20">
+    <!-- Main Chat UI -->
+    <div id="chat-screen" class="hidden z-10 w-full max-w-5xl h-[85vh] flex flex-col scale-95 transition-all duration-500">
+        <div class="glass-panel rounded-t-3xl p-6 flex justify-between items-center border-b border-white/20">
             <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center pixel-border text-2xl">?</div>
+                <div class="w-14 h-14 bg-yellow-400 rounded-xl flex items-center justify-center pixel-border text-3xl">?</div>
                 <div>
-                    <h2 id="display-nick" class="mario-font text-xs text-white">OYUNCU 1</h2>
-                    <p class="text-xs text-blue-100 font-bold uppercase tracking-wider">Dünya 1-1 / Çevrimiçi</p>
+                    <h2 id="display-nick" class="mario-font text-sm text-white">OYUNCU</h2>
+                    <p id="display-room" class="text-xs text-blue-100 font-bold uppercase">DÜNYA 1-1</p>
                 </div>
             </div>
-            
             <div class="flex gap-4">
-                <button id="mute-btn" class="p-4 bg-white/20 hover:bg-white/30 rounded-xl transition-all border border-white/30">
+                <button id="mute-btn" class="w-14 h-14 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-2xl border border-white/30 transition-all">
                     <span id="mute-icon" class="text-2xl">🎤</span>
                 </button>
-                <button onclick="location.reload()" class="p-4 bg-red-600/80 hover:bg-red-700 rounded-xl transition-all border border-red-400">
-                    <span class="text-xl">🏃‍♂️</span>
+                <button onclick="location.reload()" class="w-14 h-14 flex items-center justify-center bg-red-600/80 hover:bg-red-700 rounded-2xl border border-red-400">
+                    <span class="text-xl">🏃</span>
                 </button>
             </div>
         </div>
 
-        <!-- Main Area -->
         <div class="flex-1 flex overflow-hidden">
             <!-- Sidebar: Participants -->
-            <div class="w-64 bg-black/30 backdrop-blur-md p-6 overflow-y-auto border-r border-white/10">
-                <h3 class="mario-font text-[10px] text-yellow-400 mb-6 uppercase">Bağlı Oyuncular</h3>
-                <ul id="user-list" class="space-y-4">
-                    <!-- Users will appear here -->
+            <div class="w-72 bg-black/40 backdrop-blur-xl p-6 overflow-y-auto border-r border-white/10">
+                <h3 class="mario-font text-[10px] text-yellow-400 mb-8 tracking-widest">ÇEVRİMİÇİ</h3>
+                <ul id="user-list" class="space-y-6">
+                    <!-- Dinamik Liste -->
                 </ul>
             </div>
 
-            <!-- Voice Grid Area -->
-            <div class="flex-1 p-8 overflow-y-auto bg-gradient-to-b from-transparent to-black/20">
-                <div id="voice-grid" class="grid grid-cols-2 gap-6">
-                    <!-- Active voice boxes -->
+            <!-- Voice Grid -->
+            <div class="flex-1 p-8 overflow-y-auto bg-gradient-to-br from-transparent to-black/30">
+                <div id="voice-grid" class="grid grid-cols-2 md:grid-cols-3 gap-6">
+                    <!-- Ses Kutuları -->
                 </div>
-                
-                <!-- Center Decoration -->
-                <div class="mt-12 text-center opacity-30 pointer-events-none">
-                    <div class="text-8xl mb-4">🏰</div>
-                    <p class="mario-font text-[10px] text-white">Sohbet Kalesi Güvende</p>
+                <div id="empty-state" class="h-full flex flex-col items-center justify-center opacity-40">
+                    <div class="text-9xl mb-4">🏰</div>
+                    <p class="mario-font text-[10px] text-white">Diğer arkadaşlarının girmesi bekleniyor...</p>
                 </div>
             </div>
         </div>
 
-        <!-- Bottom Ground Decoration -->
-        <div class="h-12 w-full bg-[#885418] border-t-4 border-black flex">
-            <div class="h-full w-full opacity-50" style="background-image: radial-gradient(circle, #000 1px, transparent 1px); background-size: 10px 10px;"></div>
+        <!-- Ground -->
+        <div class="h-10 w-full bg-[#885418] border-t-4 border-black flex overflow-hidden">
+            <div class="flex-1 opacity-30" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, #000 10px, #000 20px);"></div>
         </div>
     </div>
 
-    <!-- PeerJS Library for WebRTC -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import Peer from "https://esm.sh/peerjs@1.5.4?bundle";
 
-    <script>
+        // Global Değişkenler
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'warp-chat-default';
+
+        let myPeer, myStream, user, currentRoom, myNick;
+        let isMuted = false;
+        const peers = {};
+
+        // UI Elementleri
         const loginScreen = document.getElementById('login-screen');
         const chatScreen = document.getElementById('chat-screen');
         const joinBtn = document.getElementById('join-btn');
-        const nickInput = document.getElementById('nick-input');
-        const roomInput = document.getElementById('room-input');
-        const displayNick = document.getElementById('display-nick');
-        const userList = document.getElementById('user-list');
-        const voiceGrid = document.getElementById('voice-grid');
+        const btnText = document.getElementById('btn-text');
+        const btnLoader = document.getElementById('btn-loader');
+        const userListUI = document.getElementById('user-list');
+        const voiceGridUI = document.getElementById('voice-grid');
         const muteBtn = document.getElementById('mute-btn');
-        const muteIcon = document.getElementById('mute-icon');
+        const emptyState = document.getElementById('empty-state');
 
-        let myPeer;
-        let myStream;
-        let isMuted = false;
-        let currentRoomId = '';
-        const connectedPeers = {};
-
-        // Mario Sound Effects (Optional - placeholders for logic)
-        const playCoin = () => { /* Add coin sound URL here if desired */ };
-
+        // Login İşlemi
         joinBtn.onclick = async () => {
-            const nick = nickInput.value.trim();
-            const room = roomInput.value.trim();
+            const nick = document.getElementById('nick-input').value.trim();
+            const room = document.getElementById('room-input').value.trim();
 
-            if (!nick || !room) {
-                alert("Lütfen bir nick ve oda anahtarı girin!");
-                return;
-            }
+            if (!nick || !room) return alert("Nick ve Oda adı şart!");
+            
+            btnText.classList.add('hidden');
+            btnLoader.classList.remove('hidden');
 
             try {
-                // Get Microphone
+                // 1. Auth & Stream
+                const authUser = await signInAnonymously(auth);
+                user = authUser.user;
                 myStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                
-                // Initialize Peer with a Room-Prefix ID
-                // Format: ROOMID-NICKNAME
-                const myId = `${room}-${nick}`.replace(/\s+/g, '-').toLowerCase();
-                myPeer = new Peer(myId);
+                myNick = nick;
+                currentRoom = room.toLowerCase().replace(/\s+/g, '-');
+
+                // 2. PeerJS Başlat (ID olarak Firebase UID kullanıyoruz ki çakışmasın)
+                myPeer = new Peer(user.uid);
 
                 myPeer.on('open', (id) => {
-                    console.log('Bağlantı başarılı. Kimlik:', id);
-                    currentRoomId = room;
-                    setupChat(nick);
-                    
-                    // In a real app, you'd need a server to list peers. 
-                    // For "6 friends", we suggest them to share their nicknames.
-                    // Or we can try to "discover" by common naming if they follow the pattern.
-                    // PeerJS doesn't support room listing natively without a server.
+                    enterRoom(id);
                 });
 
                 myPeer.on('call', (call) => {
                     call.answer(myStream);
-                    handleCall(call);
-                });
-
-                myPeer.on('error', (err) => {
-                    if (err.type === 'id-taken') alert("Bu nick bu odada zaten alınmış!");
-                    else console.error(err);
+                    setupVoiceStream(call);
                 });
 
             } catch (err) {
-                alert("Mikrofon izni verilmedi!");
-                console.error(err);
+                alert("Hata: " + err.message);
+                location.reload();
             }
         };
 
-        function setupChat(nick) {
+        async function enterRoom(peerId) {
+            // Firestore'a "Ben buradayım" kaydı yap
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoom, 'users', peerId);
+            await setDoc(userRef, {
+                nick: myNick,
+                joinedAt: Date.now(),
+                peerId: peerId
+            });
+
+            // UI Güncelle
             loginScreen.classList.add('hidden');
             chatScreen.classList.remove('hidden');
-            displayNick.innerText = nick.toUpperCase();
-            
-            // Add self to user list
-            addUserToUI(nick, true);
+            document.getElementById('display-nick').innerText = myNick.toUpperCase();
+            document.getElementById('display-room').innerText = `DÜNYA: ${currentRoom.toUpperCase()}`;
+
+            // Odayı dinle (Kimin girip çıktığını anlık takip et)
+            const roomQuery = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoom, 'users');
+            onSnapshot(roomQuery, (snapshot) => {
+                const activeUsers = [];
+                snapshot.forEach(doc => activeUsers.push(doc.data()));
+                updateRoomState(activeUsers);
+            }, (err) => console.error("Firestore dinleme hatası:", err));
+
+            // Sayfa kapanınca kaydı sil
+            window.addEventListener('beforeunload', () => deleteDoc(userRef));
         }
 
-        function handleCall(call) {
-            const peerNick = call.peer.split('-').slice(1).join('-'); // Extract nick from ID
+        function updateRoomState(activeUsers) {
+            userListUI.innerHTML = '';
             
-            call.on('stream', (remoteStream) => {
-                if (!connectedPeers[call.peer]) {
-                    addRemoteVoice(peerNick, remoteStream, call.peer);
-                    connectedPeers[call.peer] = call;
+            if (activeUsers.length > 1) emptyState.classList.add('hidden');
+            else emptyState.classList.remove('hidden');
+
+            activeUsers.forEach(u => {
+                // Listeye ekle
+                const li = document.createElement('li');
+                li.className = "flex items-center justify-between animate-fade-in";
+                li.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl">${u.peerId === user.uid ? '⭐' : '🍄'}</span>
+                        <span class="text-white font-bold text-sm tracking-wide">${u.nick}</span>
+                    </div>
+                    <div class="online-dot"></div>
+                `;
+                userListUI.appendChild(li);
+
+                // Eğer yeni biriyse ve ben değilsem, onu ara!
+                if (u.peerId !== user.uid && !peers[u.peerId]) {
+                    const call = myPeer.call(u.peerId, myStream);
+                    setupVoiceStream(call, u.nick);
+                    peers[u.peerId] = call;
                 }
             });
         }
 
-        function addRemoteVoice(nick, stream, peerId) {
-            // Create Audio Element
-            const audio = document.createElement('audio');
-            audio.srcObject = stream;
-            audio.autoplay = true;
-            audio.hidden = true;
-            document.body.appendChild(audio);
+        function setupVoiceStream(call, remoteNick = "Arkadaş") {
+            call.on('stream', (remoteStream) => {
+                if (document.getElementById(`voice-${call.peer}`)) return;
 
-            addUserToUI(nick, false, peerId);
-            
-            // Create Visual Box
-            const box = document.createElement('div');
-            box.id = `box-${peerId}`;
-            box.className = "bg-white/10 border-2 border-white/20 p-6 rounded-2xl flex flex-col items-center justify-center gap-3 animate-bounce-short";
-            box.innerHTML = `
-                <div class="avatar-mushroom">🍄</div>
-                <div class="mario-font text-[10px] text-white">${nick}</div>
-                <div class="flex gap-1">
-                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
-                </div>
-            `;
-            voiceGrid.appendChild(box);
-        }
+                // Audio Element
+                const audio = document.createElement('audio');
+                audio.srcObject = remoteStream;
+                audio.autoplay = true;
+                document.body.appendChild(audio);
 
-        function addUserToUI(nick, isMe, peerId = null) {
-            const li = document.createElement('li');
-            li.className = "flex items-center justify-between group";
-            li.innerHTML = `
-                <div class="flex items-center gap-3">
-                    <span class="text-xl">${isMe ? '⭐' : '🍄'}</span>
-                    <span class="text-white font-semibold text-sm">${nick} ${isMe ? '(Siz)' : ''}</span>
-                </div>
-                <div class="w-2 h-2 bg-green-400 rounded-full"></div>
-            `;
-            userList.appendChild(li);
+                // Visual Box
+                const box = document.createElement('div');
+                box.id = `voice-${call.peer}`;
+                box.className = "glass-panel p-6 rounded-3xl flex flex-col items-center justify-center gap-4 border-2 border-white/20 animate-bounce-slow";
+                box.innerHTML = `
+                    <div class="text-5xl drop-shadow-lg">🍄</div>
+                    <div class="mario-font text-[9px] text-white text-center">${remoteNick}</div>
+                    <div class="flex gap-1">
+                        <div class="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping"></div>
+                        <div class="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" style="animation-delay: 0.3s"></div>
+                    </div>
+                `;
+                voiceGridUI.appendChild(box);
+            });
+
+            call.on('close', () => {
+                document.getElementById(`voice-${call.peer}`)?.remove();
+                delete peers[call.peer];
+            });
         }
 
         muteBtn.onclick = () => {
             isMuted = !isMuted;
             myStream.getAudioTracks()[0].enabled = !isMuted;
-            muteIcon.innerText = isMuted ? '🔇' : '🎤';
+            document.getElementById('mute-icon').innerText = isMuted ? '🔇' : '🎤';
             muteBtn.classList.toggle('bg-red-500', isMuted);
             muteBtn.classList.toggle('bg-white/20', !isMuted);
         };
-
-        // Automatic discovery logic (Optional/Simple)
-        // Since we don't have a backend to list users, we can't easily "see" who is there.
-        // A simple trick: Ask users to input their friends' names or use a central signaling mechanism.
-        // BUT: For a group of 6, you can simply have them "Call" each other if they know the IDs.
-        
-        // For this demo: We'll allow them to "Call someone" by typing their nick if they aren't connected.
-        // Or simpler: PeerJS works best when everyone calls everyone. 
-        // In a static page, without a server list, you'd need a way to know who is online.
     </script>
 </body>
 </html>
