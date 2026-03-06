@@ -151,157 +151,239 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import Peer from "https://esm.sh/peerjs@1.5.4?bundle";
+    <!-- PeerJS Kütüphanesi -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
+    <script>
         // Global Değişkenler
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'warp-chat-default';
-
-        let myPeer, myStream, user, currentRoom, myNick;
+        let myPeer, myStream, myNick, roomName;
+        let isHost = false;
+        let peers = {}; // Aktif bağlantıları tutar
+        let roomClients = []; // Sadece Host kullanır, kimlerin içeride olduğunu tutar
         let isMuted = false;
-        const peers = {};
 
         // UI Elementleri
         const loginScreen = document.getElementById('login-screen');
         const chatScreen = document.getElementById('chat-screen');
         const joinBtn = document.getElementById('join-btn');
-        const btnText = document.getElementById('btn-text');
-        const btnLoader = document.getElementById('btn-loader');
         const userListUI = document.getElementById('user-list');
         const voiceGridUI = document.getElementById('voice-grid');
-        const muteBtn = document.getElementById('mute-btn');
         const emptyState = document.getElementById('empty-state');
+        const muteBtn = document.getElementById('mute-btn');
 
-        // Login İşlemi
         joinBtn.onclick = async () => {
-            const nick = document.getElementById('nick-input').value.trim();
-            const room = document.getElementById('room-input').value.trim();
+            myNick = document.getElementById('nick-input').value.trim();
+            const roomInput = document.getElementById('room-input').value.trim();
 
-            if (!nick || !room) return alert("Nick ve Oda adı şart!");
+            if (!myNick || !roomInput) return alert("Nick ve Oda adı şart!");
             
-            btnText.classList.add('hidden');
-            btnLoader.classList.remove('hidden');
+            document.getElementById('btn-text').classList.add('hidden');
+            document.getElementById('btn-loader').classList.remove('hidden');
+
+            // Oda ismini temizle ve standart bir formata sok
+            roomName = 'warp-room-' + roomInput.toLowerCase().replace(/\s+/g, '-');
 
             try {
-                // 1. Auth & Stream
-                const authUser = await signInAnonymously(auth);
-                user = authUser.user;
+                // Sadece mikrofon izni iste
                 myStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                myNick = nick;
-                currentRoom = room.toLowerCase().replace(/\s+/g, '-');
-
-                // 2. PeerJS Başlat (ID olarak Firebase UID kullanıyoruz ki çakışmasın)
-                myPeer = new Peer(user.uid);
-
-                myPeer.on('open', (id) => {
-                    enterRoom(id);
-                });
-
-                myPeer.on('call', (call) => {
-                    call.answer(myStream);
-                    setupVoiceStream(call);
-                });
+                
+                // İlk giren kişi olmayı (Host) dene
+                initPeerAsHost();
 
             } catch (err) {
-                alert("Hata: " + err.message);
-                location.reload();
+                alert("Mikrofona erişilemedi! Lütfen izin verin.");
+                resetBtn();
             }
         };
 
-        async function enterRoom(peerId) {
-            // Firestore'a "Ben buradayım" kaydı yap
-            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoom, 'users', peerId);
-            await setDoc(userRef, {
-                nick: myNick,
-                joinedAt: Date.now(),
-                peerId: peerId
-            });
-
-            // UI Güncelle
-            loginScreen.classList.add('hidden');
-            chatScreen.classList.remove('hidden');
-            document.getElementById('display-nick').innerText = myNick.toUpperCase();
-            document.getElementById('display-room').innerText = `DÜNYA: ${currentRoom.toUpperCase()}`;
-
-            // Odayı dinle (Kimin girip çıktığını anlık takip et)
-            const roomQuery = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoom, 'users');
-            onSnapshot(roomQuery, (snapshot) => {
-                const activeUsers = [];
-                snapshot.forEach(doc => activeUsers.push(doc.data()));
-                updateRoomState(activeUsers);
-            }, (err) => console.error("Firestore dinleme hatası:", err));
-
-            // Sayfa kapanınca kaydı sil
-            window.addEventListener('beforeunload', () => deleteDoc(userRef));
+        function resetBtn() {
+            document.getElementById('btn-text').classList.remove('hidden');
+            document.getElementById('btn-loader').classList.add('hidden');
         }
 
-        function updateRoomState(activeUsers) {
-            userListUI.innerHTML = '';
-            
-            if (activeUsers.length > 1) emptyState.classList.add('hidden');
-            else emptyState.classList.remove('hidden');
+        // --- 1. ADIM: SUNUCU OLMAYI DENEME ---
+        function initPeerAsHost() {
+            // Oda adını doğrudan kendi Peer ID'si yapmaya çalışır.
+            myPeer = new Peer(roomName);
 
-            activeUsers.forEach(u => {
-                // Listeye ekle
-                const li = document.createElement('li');
-                li.className = "flex items-center justify-between animate-fade-in";
-                li.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <span class="text-xl">${u.peerId === user.uid ? '⭐' : '🍄'}</span>
-                        <span class="text-white font-bold text-sm tracking-wide">${u.nick}</span>
-                    </div>
-                    <div class="online-dot"></div>
-                `;
-                userListUI.appendChild(li);
+            myPeer.on('open', (id) => {
+                // Eğer hata vermeden açıldıysa, bu odayı İLK KURAN KİŞİ sensin!
+                isHost = true;
+                setupUI();
+                listenForClients(); // Diğerlerinin bağlanmasını bekle
+            });
 
-                // Eğer yeni biriyse ve ben değilsem, onu ara!
-                if (u.peerId !== user.uid && !peers[u.peerId]) {
-                    const call = myPeer.call(u.peerId, myStream);
-                    setupVoiceStream(call, u.nick);
-                    peers[u.peerId] = call;
+            myPeer.on('error', (err) => {
+                if (err.type === 'unavailable-id') {
+                    // Oda zaten var! Demek ki başkası kurmuş. Biz istemci olacağız.
+                    myPeer.destroy(); // Hatalı bağlantıyı temizle
+                    initPeerAsClient(); // Normal kullanıcı olarak bağlan
+                } else {
+                    alert("Ağ hatası: " + err.message);
+                    resetBtn();
                 }
             });
         }
 
-        function setupVoiceStream(call, remoteNick = "Arkadaş") {
-            call.on('stream', (remoteStream) => {
-                if (document.getElementById(`voice-${call.peer}`)) return;
+        // --- 2. ADIM: NORMAL KULLANICI OLARAK BAĞLANMA ---
+        function initPeerAsClient() {
+            myPeer = new Peer(); // Rastgele bir ID al
 
-                // Audio Element
+            myPeer.on('open', (id) => {
+                isHost = false;
+                setupUI();
+
+                // Host'a (Odayı Kurana) "Ben geldim" mesajı at
+                const conn = myPeer.connect(roomName);
+                
+                conn.on('open', () => {
+                    conn.send({ type: 'join', id: id, nick: myNick });
+                });
+
+                conn.on('data', (data) => {
+                    if (data.type === 'peer-list') {
+                        // Host bize odadaki diğer kişileri gönderdi. Onları arıyoruz.
+                        data.peers.forEach(p => makeCall(p.id, p.nick));
+                    }
+                });
+
+                // Host'un kendisine direkt ses bağlantısı kur
+                makeCall(roomName, "Oda Kurucusu");
+
+                // Odadaki diğer kişilerin beni aramasına izin ver
+                listenForCalls();
+            });
+        }
+
+        // --- 3. ADIM: SUNUCUNUN (HOST) YÖNETİMİ ---
+        function listenForClients() {
+            listenForCalls(); // Host da aramaları yanıtlamalı
+
+            myPeer.on('connection', (conn) => {
+                // Yeni biri odaya girdiğinde data bağlantısı açılır
+                conn.on('data', (data) => {
+                    if (data.type === 'join') {
+                        // Yeni gelene, içerideki diğer kişilerin listesini at
+                        conn.send({ type: 'peer-list', peers: roomClients });
+                        
+                        // İçeridekiler listesine yeni geleni ekle
+                        roomClients.push({ id: data.id, nick: data.nick });
+                    }
+                });
+            });
+        }
+
+        // --- 4. ADIM: ARAMALARI YAPMA VE YANITLAMA ---
+        function listenForCalls() {
+            myPeer.on('call', (call) => {
+                // Biri beni aradığında mikrofonumu açıp ona gönderiyorum
+                call.answer(myStream);
+                const callerNick = call.metadata ? call.metadata.nick : "Oyuncu";
+                handleStream(call, callerNick);
+            });
+        }
+
+        function makeCall(peerId, targetNick) {
+            // Karşı tarafı ara ve metadata ile kendi adımı gönder
+            const call = myPeer.call(peerId, myStream, { metadata: { nick: myNick } });
+            handleStream(call, targetNick);
+        }
+
+        function handleStream(call, remoteNick) {
+            if (peers[call.peer]) return; // Zaten bağlıysam geç
+            peers[call.peer] = call;
+
+            call.on('stream', (remoteStream) => {
+                // Eğer ses elementi zaten varsa tekrar oluşturma
+                if (document.getElementById(`audio-${call.peer}`)) return;
+
+                // Sesi oynatacak gizli element
                 const audio = document.createElement('audio');
+                audio.id = `audio-${call.peer}`;
                 audio.srcObject = remoteStream;
                 audio.autoplay = true;
                 document.body.appendChild(audio);
 
-                // Visual Box
-                const box = document.createElement('div');
-                box.id = `voice-${call.peer}`;
-                box.className = "glass-panel p-6 rounded-3xl flex flex-col items-center justify-center gap-4 border-2 border-white/20 animate-bounce-slow";
-                box.innerHTML = `
-                    <div class="text-5xl drop-shadow-lg">🍄</div>
-                    <div class="mario-font text-[9px] text-white text-center">${remoteNick}</div>
-                    <div class="flex gap-1">
-                        <div class="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping"></div>
-                        <div class="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" style="animation-delay: 0.3s"></div>
-                    </div>
-                `;
-                voiceGridUI.appendChild(box);
+                // Arayüze kutusunu ekle
+                addVoiceBox(call.peer, remoteNick);
             });
 
+            // Güvenli bağlantı kopması kontrolü
+            call.peerConnection.oniceconnectionstatechange = function() {
+                if(call.peerConnection.iceConnectionState == 'disconnected' ||
+                   call.peerConnection.iceConnectionState == 'failed' ||
+                   call.peerConnection.iceConnectionState == 'closed') {
+                    removeVoiceBox(call.peer);
+                    delete peers[call.peer];
+                }
+            };
+
             call.on('close', () => {
-                document.getElementById(`voice-${call.peer}`)?.remove();
+                removeVoiceBox(call.peer);
                 delete peers[call.peer];
             });
         }
 
+        // --- 5. ADIM: ARAYÜZ (UI) GÜNCELLEMELERİ ---
+        function setupUI() {
+            loginScreen.classList.add('hidden');
+            chatScreen.classList.remove('hidden');
+            document.getElementById('display-nick').innerText = myNick.toUpperCase() + (isHost ? " (KURUCU)" : "");
+            document.getElementById('display-room').innerText = `DÜNYA: ${roomName.replace('warp-room-', '').toUpperCase()}`;
+            
+            // Kendimi listeye ekle
+            addUserToList('self', myNick, true);
+        }
+
+        function addVoiceBox(id, nick) {
+            emptyState.classList.add('hidden'); // Boş yazısını gizle
+            
+            // Ses Kutusu
+            const box = document.createElement('div');
+            box.id = `box-${id}`;
+            box.className = "glass-panel p-6 rounded-3xl flex flex-col items-center justify-center gap-4 border-2 border-white/20 animate-bounce-slow";
+            box.innerHTML = `
+                <div class="text-5xl drop-shadow-lg">🍄</div>
+                <div class="mario-font text-[9px] text-white text-center">${nick}</div>
+                <div class="flex gap-1">
+                    <div class="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping"></div>
+                    <div class="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" style="animation-delay: 0.3s"></div>
+                </div>
+            `;
+            voiceGridUI.appendChild(box);
+
+            // Yan menüye ekle
+            addUserToList(id, nick, false);
+        }
+
+        function removeVoiceBox(id) {
+            document.getElementById(`audio-${id}`)?.remove();
+            document.getElementById(`box-${id}`)?.remove();
+            document.getElementById(`li-${id}`)?.remove();
+            
+            // Eğer kimse kalmadıysa boş yazısını göster
+            if(Object.keys(peers).length === 0) {
+                emptyState.classList.remove('hidden');
+            }
+        }
+
+        function addUserToList(id, nick, isMe) {
+            if (document.getElementById(`li-${id}`)) return;
+            
+            const li = document.createElement('li');
+            li.id = `li-${id}`;
+            li.className = "flex items-center justify-between animate-fade-in";
+            li.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-xl">${isMe ? '⭐' : '🍄'}</span>
+                    <span class="text-white font-bold text-sm tracking-wide">${nick}</span>
+                </div>
+                <div class="online-dot"></div>
+            `;
+            userListUI.appendChild(li);
+        }
+
+        // Mikrofon Kontrolü
         muteBtn.onclick = () => {
             isMuted = !isMuted;
             myStream.getAudioTracks()[0].enabled = !isMuted;
@@ -312,5 +394,6 @@
     </script>
 </body>
 </html>
+
 
 
